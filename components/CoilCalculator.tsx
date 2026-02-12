@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { WireMaterial, CoilStats, WireType, CoilConfig, SimulationResult } from '../types.ts';
 import { GAUGE_TO_MM } from '../constants.ts';
 import { useTranslation } from '../i18n.ts';
@@ -19,6 +19,8 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
   const [wraps, setWraps] = useState<number>(6);
   const [voltage, setVoltage] = useState<number>(3.7);
   const [cdr, setCdr] = useState<number>(20);
+  const [coilImageUrl, setCoilImageUrl] = useState('');
+  const coilImageRef = useRef<HTMLInputElement>(null);
   
   const [sim, setSim] = useState<{
     res: number,
@@ -45,6 +47,15 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
     });
   }, [material, wireConfig, coilCount, gauge, id, wraps, voltage, cdr]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setCoilImageUrl(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = () => {
     if (!onSaveToClasses || !sim) return;
     const coil: CoilStats = {
@@ -63,11 +74,12 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
       simulation: sim.data,
       heatCapacity: sim.hc,
       surfaceArea: sim.sa,
-      images: [],
+      images: coilImageUrl ? [coilImageUrl] : [],
       createdAt: Date.now()
     };
     onSaveToClasses(coil);
     setName('');
+    setCoilImageUrl('');
     alert(lang === 'fa' ? 'در کتابخانه ثبت شد!' : 'Saved to Library!');
   };
 
@@ -110,17 +122,22 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
         </div>
       </div>
 
-      {/* Simulation Twin Details */}
-      <div className="grid grid-cols-2 gap-4 px-2">
-         <div className="glass p-5 rounded-3xl border-slate-800/40 text-center">
-            <div className="text-[8px] font-black text-slate-600 uppercase mb-1">{t.efficiency}</div>
-            <div className="text-xl font-black text-white">{sim.data.efficiencyScore.toFixed(0)}%</div>
-         </div>
-         <div className="glass p-5 rounded-3xl border-slate-800/40 text-center">
-            <div className="text-[8px] font-black text-slate-600 uppercase mb-1">{t.stress}</div>
-            <div className={`text-xl font-black ${sim.data.stressIndex > 80 ? 'text-red-500' : 'text-blue-500'}`}>{sim.data.stressIndex.toFixed(0)}</div>
-         </div>
-      </div>
+      {/* Task 2: Coil Image Button and Preview */}
+      <section className="space-y-3">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t.addCoilPicture}</label>
+        <div onClick={() => coilImageRef.current?.click()}
+          className="w-full h-32 rounded-[2.5rem] bg-slate-950/30 border-2 border-dashed border-slate-800 flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-500/50 transition-all shadow-inner relative">
+          {coilImageUrl ? (
+            <img src={coilImageUrl} className="w-full h-full object-cover" alt="Coil" />
+          ) : (
+            <>
+              <i className="fa-solid fa-microchip text-2xl text-slate-700 group-hover:text-blue-500 mb-2 transition-colors"></i>
+              <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{t.uploadImg}</span>
+            </>
+          )}
+        </div>
+        <input type="file" ref={coilImageRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
+      </section>
 
       <div className="glass p-6 rounded-[2.5rem] space-y-6 shadow-xl border-slate-800/40">
         <div className="space-y-4">
@@ -176,7 +193,7 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
            </div>
         </div>
 
-        <button onClick={handleSave} className="w-full bg-blue-600/10 border border-blue-500/30 text-blue-400 py-5 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.2em] hover:bg-blue-600 hover:text-white transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-3">
+        <button onClick={handleSave} className="w-full bg-blue-600 py-5 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.2em] hover:bg-blue-600 hover:text-white transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-3">
           <i className="fa-solid fa-microchip"></i>
           {t.saveToClasses}
         </button>

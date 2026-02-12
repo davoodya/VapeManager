@@ -7,8 +7,22 @@ export enum WireMaterial {
   TITANIUM = 'Titanium'
 }
 
+export type AtomizerStyle = 'MTL' | 'RTA' | 'RDA' | 'RDTA';
+export type VapingStyle = 'MTL' | 'RDL' | 'DL';
+export type DripTipType = 'Short' | 'Medium' | 'Long' | 'Custom';
 export type CoilConfig = 'Single' | 'Dual' | 'Triple' | 'Quad';
 export type WireType = 'Round' | 'Parallel' | 'Twisted';
+export type LiquidType = 'E-Juice Freebase' | 'Nic Salt' | 'Shortfill';
+
+export type FlavorCategory = 
+  | 'Fruit' 
+  | 'Desert' 
+  | 'Tobacco' 
+  | 'Desert Tobacco' 
+  | 'NET-Naturally Extracted Tobacco' 
+  | 'ICE-Menthol Fruits' 
+  | 'ICE-Menthol Other' 
+  | 'Custom';
 
 export interface SimulationResult {
   heatFlux: number;
@@ -20,18 +34,19 @@ export interface SimulationResult {
 
 export interface CoilStats {
   id: string;
-  parentId?: string; // For Genetic Evolution tracking
-  name: string;
+  parentId?: string;
+  name?: string;
+  wire?: string;
+  gauge?: string | number;
   resistance: number; 
-  material: WireMaterial;
-  gauge: number; 
-  wraps: number;
-  innerDiameter: number; 
-  type: 'Spaced' | 'Contact';
-  wireConfig: WireType;
-  coilCount: CoilConfig;
-  liquidConsumed: number; 
-  usageCount: number;
+  material?: WireMaterial;
+  wraps?: number;
+  innerDiameter?: number; 
+  type?: 'Spaced' | 'Contact';
+  wireConfig?: WireType;
+  coilCount?: CoilConfig;
+  liquidConsumed?: number; 
+  usageCount?: number;
   simulation?: SimulationResult;
   heatCapacity?: number;
   surfaceArea?: number;
@@ -39,56 +54,45 @@ export interface CoilStats {
   createdAt: number;
 }
 
-export interface FailurePrediction {
-  probability: number;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-  causeAnalysis: string;
-  recommendation: string;
-}
-
-export interface AnomalyReport {
-  type: string;
-  confidence: number;
-  cause: string;
-  fix: string;
+export interface AirflowConfig {
+  afcEnabled: boolean;
+  holesNumber?: number;
+  insertEnabled: boolean;
+  insertSize?: number;
 }
 
 export interface WickingHistory {
   id: string;
   atomizerId: string;
+  vapingStyle: VapingStyle;
   coilId?: string; 
+  coilData?: Partial<CoilStats>;
   cottonId: string;
   liquidId: string;
   wattage: number;
-  airflowType: 'Insert' | 'AFC';
-  airflowSetting: string;
+  airflow: AirflowConfig;
+  coilHeightMm?: number;
+  dripTip: DripTipType;
+  dripTipCustomValue?: string;
   mlConsumed: number;
   maxWickLife: number; 
   notes: string;
   sweetSpot?: string;
-  degradationScore: number; // 0-100
-  failurePrediction?: FailurePrediction;
+  degradationScore: number;
+  imageUrl?: string;
+  status: 'active' | 'archived';
   date: number;
   isActive: boolean;
-}
-
-export interface UserPreferenceProfile {
-  warmthWeight: number; // 0-1
-  flavorWeight: number;
-  vaporWeight: number;
-  efficiencyWeight: number;
 }
 
 export interface UserExperience {
   id: string;
   topic: string;
   content: string;
+  setupIds: string[];
   imageUrl?: string;
   aiAnalysis?: string;
-  rating: number; // 1-10
-  warmthRating?: number;
-  flavorRating?: number;
-  vaporRating?: number;
+  rating: number; 
   date: number;
 }
 
@@ -96,28 +100,41 @@ export type InventoryCategory =
   | 'atomizer' 
   | 'wire' 
   | 'prebuilt_coil' 
-  | 'liquid_salt' 
-  | 'liquid_ejuice' 
+  | 'liquid'
   | 'cotton' 
   | 'tool' 
   | 'battery' 
   | 'mod' 
   | 'pod_system' 
-  | 'pod_cartridge';
+  | 'pod_cartridge'
+  | 'drip_tip';
 
 export interface InventoryItem {
   id: string;
-  name: string;
+  name: string; 
   brand?: string;
   imageUrl?: string;
   description?: string;
   category: InventoryCategory;
   price?: number;
+  style?: AtomizerStyle;
   specs?: {
     capacity?: number;
-    nicotine?: number;
+    nicotineStrength?: number;
+    liquidType?: LiquidType;
+    flavorCategory?: FlavorCategory;
+    customFlavorCategory?: string;
+    flavor?: string;
+    bottleSize?: string;
+    customBottleSize?: string;
     vg_pg?: string;
     cdr?: number;
     voltage?: number;
+    innerDiameter?: string | number;
+    dripTipSize?: 'Short' | 'Medium' | 'Long' | 'Very Long';
+    material?: string;
+    customMaterial?: string;
   };
+  createdAt: number;
+  updatedAt?: number;
 }

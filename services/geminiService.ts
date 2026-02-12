@@ -23,6 +23,72 @@ export const analyzeExperience = async (topic: string, content: string): Promise
   }
 };
 
+export const translateText = async (text: string, targetLanguage: string): Promise<string> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Translate the following technical vaping analysis text into ${targetLanguage}. Maintain the professional tone and specialized terminology. Return only the translated text.
+      Text: "${text}"`,
+    });
+    return response.text || text;
+  } catch (error) {
+    console.error("Translation Error:", error);
+    return text;
+  }
+};
+
+export const summarizeAiComment = async (text: string): Promise<string> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Summarize the following vaping setup analysis into a very brief bulleted list (max 3-4 bullets). Use short, high-impact headings followed by extremely concise explanations. Focus only on critical improvements and alignment. Return only the summarized text.
+      Text: "${text}"`,
+    });
+    return response.text || text;
+  } catch (error) {
+    console.error("Summary Error:", error);
+    return text;
+  }
+};
+
+export const analyzeSetupLogic = async (setup: any): Promise<string> => {
+  try {
+    const prompt = `
+      Vaping Setup Critical Analysis Request:
+      
+      Details:
+      - Vaping Style: ${setup.vapingStyle}
+      - Atomizer: ${setup.atomizerModel} (${setup.atomizerStyle})
+      - Coil: ${JSON.stringify(setup.coilData)}
+      - Airflow: ${JSON.stringify(setup.airflow)}
+      - Drip Tip: ${setup.dripTip} ${setup.dripTipCustomValue || ''}
+      - Coil Height: ${setup.coilHeightMm}mm
+      - E-Liquid: ${setup.liquidNicotine}mg ${setup.liquidType}
+      
+      Task:
+      1. Analyze compatibility between coil resistance and vaping style (${setup.vapingStyle}).
+      2. Evaluate if the airflow configuration (AFC/Insert) matches the coil diameter.
+      3. Validate the coil height relative to airflow logic.
+      4. Detect inconsistencies (e.g., high nicotine with high wattage/DL style).
+      5. Suggest 1-2 concrete technical improvements.
+      
+      Keep the tone professional, engineering-focused, and concise.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+      config: {
+        thinkingConfig: { thinkingBudget: 16000 }
+      }
+    });
+    return response.text || "Setup verification complete.";
+  } catch (error) {
+    console.error("AI Error:", error);
+    return "Analysis engine unavailable.";
+  }
+};
+
 export const findSweetSpot = async (
   coil: Partial<CoilStats>, 
   history: WickingHistory[], 

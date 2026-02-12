@@ -13,9 +13,9 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'dashboard', icon: 'fa-house', label: t.home },
     { id: 'inventory', icon: 'fa-boxes-stacked', label: t.inventory },
-    { id: 'wicking', icon: 'fa-droplet', label: t.wick, primary: true },
-    { id: 'gallery', icon: 'fa-images', label: t.gallery },
-    { id: 'experience', icon: 'fa-pen-to-square', label: t.notes },
+    { id: 'lab', icon: 'fa-flask-vial', label: t.lab, primary: true },
+    { id: 'stats', icon: 'fa-chart-pie', label: t.stats },
+    { id: 'settings', icon: 'fa-gear', label: t.settingsTitle },
   ];
 
   return (
