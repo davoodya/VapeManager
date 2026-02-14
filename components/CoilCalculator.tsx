@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { WireMaterial, CoilStats, WireType, CoilConfig, SimulationResult } from '../types.ts';
-import { GAUGE_TO_MM } from '../constants.ts';
 import { useTranslation } from '../i18n.ts';
 import { runSimulation } from '../services/simulationEngine.ts';
+import { visualizeCoilBuild } from '../services/geminiService.ts';
 
 interface CoilCalculatorProps {
   onSaveToClasses?: (coil: CoilStats) => void;
@@ -20,6 +20,7 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
   const [voltage, setVoltage] = useState<number>(3.7);
   const [cdr, setCdr] = useState<number>(20);
   const [coilImageUrl, setCoilImageUrl] = useState('');
+  const [isVisualizing, setIsVisualizing] = useState(false);
   const coilImageRef = useRef<HTMLInputElement>(null);
   
   const [sim, setSim] = useState<{
@@ -56,6 +57,13 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
     }
   };
 
+  const handleAiVisualize = async () => {
+    setIsVisualizing(true);
+    const url = await visualizeCoilBuild({ material, wireConfig, coilCount, wraps, innerDiameter: id });
+    if (url) setCoilImageUrl(url);
+    setIsVisualizing(false);
+  };
+
   const handleSave = () => {
     if (!onSaveToClasses || !sim) return;
     const coil: CoilStats = {
@@ -85,7 +93,13 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
 
   if (!sim) return null;
 
-  const fluxColor = sim.data.heatFlux < 150 ? 'text-blue-400' : sim.data.heatFlux < 250 ? 'text-green-400' : sim.data.heatFlux < 350 ? 'text-orange-400' : 'text-red-500';
+  // Heat Flux zones: Cool (Blue), Warm (Green), Hot (Orange), Danger (Red)
+  const getFluxColor = (val: number) => {
+    if (val < 150) return 'bg-blue-500';
+    if (val < 250) return 'bg-green-500';
+    if (val < 350) return 'bg-orange-500';
+    return 'bg-red-600 animate-pulse';
+  };
 
   return (
     <div className="p-4 space-y-6 max-w-md mx-auto mb-20 animate-in fade-in">
@@ -98,22 +112,47 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
         </div>
       </div>
       
-      {/* Resistance Display Card */}
       <div className="glass p-8 rounded-[3rem] shadow-2xl text-center relative overflow-hidden group">
-        <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent ${sim.isSafe ? 'via-blue-500' : 'via-red-500'} to-transparent opacity-40`}></div>
+        <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent ${sim.isSafe ? 'via-blue-500' : 'via-red-500'} to-transparent opacity-40`}></div>
         <div className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{t.estimatedResistance}</div>
         <div className="text-7xl font-mono font-black text-white group-hover:scale-105 transition-transform duration-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.2)]">
           {sim.res.toFixed(3)}<span className="text-2xl ml-1 text-slate-600">Ω</span>
         </div>
         
+        {/* Heat Flux Visual Analyzer */}
+        <div className="mt-8 space-y-3">
+          <div className="flex justify-between items-center text-[8px] font-black text-slate-600 uppercase tracking-widest px-1">
+             <span>Thermal Performance</span>
+             <span className="text-slate-400">{sim.data.thermalClass} Setup</span>
+          </div>
+          <div className="h-3 w-full bg-slate-950 rounded-full p-0.5 border border-slate-900 shadow-inner flex overflow-hidden">
+             <div className="h-full bg-blue-500/20 w-[150px] border-r border-slate-900"></div>
+             <div className="h-full bg-green-500/20 w-[100px] border-r border-slate-900"></div>
+             <div className="h-full bg-orange-500/20 w-[100px] border-r border-slate-900"></div>
+             <div className="h-full bg-red-600/20 flex-1"></div>
+             
+             {/* Indicator */}
+             <div 
+               className={`absolute h-4 w-1 rounded-full ${getFluxColor(sim.data.heatFlux)} shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all duration-700 ease-out`}
+               style={{ left: `${Math.min(100, (sim.data.heatFlux / 500) * 100)}%`, marginTop: '-2px' }}
+             ></div>
+          </div>
+          <div className="flex justify-between text-[7px] font-bold text-slate-700 uppercase tracking-tighter">
+             <span>Cool (MTL)</span>
+             <span>Warm (RDL)</span>
+             <span>Hot (DL)</span>
+             <span>Aggressive</span>
+          </div>
+        </div>
+
         <div className="mt-8 grid grid-cols-3 gap-2 border-t border-slate-800/50 pt-6">
-           <div>
+           <div className="group">
               <div className="text-[7px] font-black text-slate-600 uppercase mb-1">{t.ampDraw}</div>
-              <div className={`text-xs font-black ${sim.isSafe ? 'text-slate-200' : 'text-red-400'}`}>{sim.amp.toFixed(1)}A</div>
+              <div className={`text-xs font-black ${sim.isSafe ? 'text-slate-200' : 'text-red-400 animate-pulse'}`}>{sim.amp.toFixed(1)}A</div>
            </div>
            <div>
               <div className="text-[7px] font-black text-slate-600 uppercase mb-1">{t.heatFlux}</div>
-              <div className={`text-xs font-black ${fluxColor}`}>{sim.data.heatFlux.toFixed(0)}</div>
+              <div className={`text-xs font-black text-slate-200`}>{sim.data.heatFlux.toFixed(0)} <span className="text-[8px] text-slate-600">mW/mm²</span></div>
            </div>
            <div>
               <div className="text-[7px] font-black text-slate-600 uppercase mb-1">{t.rampUp}</div>
@@ -121,23 +160,6 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
            </div>
         </div>
       </div>
-
-      {/* Task 2: Coil Image Button and Preview */}
-      <section className="space-y-3">
-        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t.addCoilPicture}</label>
-        <div onClick={() => coilImageRef.current?.click()}
-          className="w-full h-32 rounded-[2.5rem] bg-slate-950/30 border-2 border-dashed border-slate-800 flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-500/50 transition-all shadow-inner relative">
-          {coilImageUrl ? (
-            <img src={coilImageUrl} className="w-full h-full object-cover" alt="Coil" />
-          ) : (
-            <>
-              <i className="fa-solid fa-microchip text-2xl text-slate-700 group-hover:text-blue-500 mb-2 transition-colors"></i>
-              <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{t.uploadImg}</span>
-            </>
-          )}
-        </div>
-        <input type="file" ref={coilImageRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
-      </section>
 
       <div className="glass p-6 rounded-[2.5rem] space-y-6 shadow-xl border-slate-800/40">
         <div className="space-y-4">
@@ -193,7 +215,33 @@ const CoilCalculator: React.FC<CoilCalculatorProps> = ({ onSaveToClasses }) => {
            </div>
         </div>
 
-        <button onClick={handleSave} className="w-full bg-blue-600 py-5 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.2em] hover:bg-blue-600 hover:text-white transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-3">
+        <section className="space-y-3 pt-2">
+          <div className="flex justify-between items-center">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t.addCoilPicture}</label>
+            <button 
+              onClick={handleAiVisualize} 
+              disabled={isVisualizing}
+              className="text-[9px] font-black uppercase text-blue-400 flex items-center gap-1.5 active:scale-95 transition-all"
+            >
+              {isVisualizing ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-wand-magic-sparkles"></i>}
+              {lang === 'fa' ? 'تجسم هوشمند' : 'AI VISUALIZE'}
+            </button>
+          </div>
+          <div onClick={() => coilImageRef.current?.click()}
+            className="w-full h-32 rounded-[2.5rem] bg-slate-950/30 border-2 border-dashed border-slate-800 flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-500/50 transition-all shadow-inner relative">
+            {coilImageUrl ? (
+              <img src={coilImageUrl} className="w-full h-full object-cover" alt="Coil" />
+            ) : (
+              <>
+                <i className="fa-solid fa-microchip text-2xl text-slate-700 group-hover:text-blue-500 mb-2 transition-colors"></i>
+                <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{t.uploadImg}</span>
+              </>
+            )}
+          </div>
+          <input type="file" ref={coilImageRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
+        </section>
+
+        <button onClick={handleSave} className="w-full btn-primary py-5 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.2em] transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-3">
           <i className="fa-solid fa-microchip"></i>
           {t.saveToClasses}
         </button>

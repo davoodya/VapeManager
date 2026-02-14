@@ -13,10 +13,11 @@ export type DripTipType = 'Short' | 'Medium' | 'Long' | 'Custom';
 export type CoilConfig = 'Single' | 'Dual' | 'Triple' | 'Quad';
 export type WireType = 'Round' | 'Parallel' | 'Twisted';
 export type LiquidType = 'E-Juice Freebase' | 'Nic Salt' | 'Shortfill';
+export type Currency = 'USD' | 'IRR';
 
 export type FlavorCategory = 
   | 'Fruit' 
-  | 'Desert' 
+  | 'Dessert' 
   | 'Tobacco' 
   | 'Desert Tobacco' 
   | 'NET-Naturally Extracted Tobacco' 
@@ -39,7 +40,7 @@ export interface CoilStats {
   wire?: string;
   gauge?: string | number;
   resistance: number; 
-  material?: WireMaterial;
+  material?: string;
   wraps?: number;
   innerDiameter?: number; 
   type?: 'Spaced' | 'Contact';
@@ -117,7 +118,7 @@ export interface InventoryItem {
   description?: string;
   category: InventoryCategory;
   price?: number;
-  style?: AtomizerStyle;
+  style?: AtomizerStyle | any;
   specs?: {
     capacity?: number;
     nicotineStrength?: number;

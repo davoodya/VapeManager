@@ -1,20 +1,86 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { CoilStats, WickingHistory } from '../types.ts';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Using gemini-2.5-flash as it is supported for Maps grounding according to documentation
+export const findNearbyShops = async (lat: number, lng: number): Promise<GenerateContentResponse> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: "Find highly rated vape shops and electronic cigarette stores nearby. Provide names and summary of their ratings.",
+    config: {
+      tools: [{googleMaps: {}}],
+      toolConfig: {
+        retrievalConfig: {
+          latLng: {
+            latitude: lat,
+            longitude: lng
+          }
+        }
+      }
+    },
+  });
+  return response;
+};
+
+// Fix: Implemented missing visualizeCoilBuild function for CoilCalculator.tsx
+/**
+ * Generates a technical visualization of a coil build using gemini-2.5-flash-image.
+ * Iterates through response parts to extract the base64 image data.
+ */
+export const visualizeCoilBuild = async (params: { 
+  material: string, 
+  wireConfig: string, 
+  coilCount: string, 
+  wraps: number, 
+  innerDiameter: number 
+}): Promise<string | null> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const prompt = `A professional macro photo of a high-end vaping coil build on an RDA deck. 
+    Specs: ${params.coilCount} ${params.wireConfig} ${params.material} coils, ${params.wraps} wraps, ${params.innerDiameter}mm inner diameter. 
+    Industrial, clean, technical aesthetics, soft bokeh background.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: prompt }],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1"
+        }
+      }
+    });
+
+    // Find the image part in the response as per guidelines
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Coil Visualization AI Error:", error);
+    return null;
+  }
+};
 
 export const analyzeExperience = async (topic: string, content: string): Promise<string> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are an elite mechanical engineer and master mixologist in the vaping industry. 
-      Analyze this user session entry:
+      contents: `Analyze this technical vaping journey entry and provide professional feedback.
       Topic: "${topic}"
       Log: "${content}"
       
-      Task: Provide a critical, technical 2-sentence insight. Focus on juice-coil interaction or thermal dynamics if mentioned. 
-      Use professional terminology. Keep it under 200 characters.`,
+      Structure your response:
+      1. Technical Evaluation
+      2. Optimization Ideas
+      3. Pro Tip for this Setup.`,
     });
     return response.text || "Insight analysis pending.";
   } catch (error) {
@@ -25,9 +91,10 @@ export const analyzeExperience = async (topic: string, content: string): Promise
 
 export const translateText = async (text: string, targetLanguage: string): Promise<string> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Translate the following technical vaping analysis text into ${targetLanguage}. Maintain the professional tone and specialized terminology. Return only the translated text.
+      contents: `Translate the following vaping analysis into ${targetLanguage}. Maintain technical accuracy and professional tone.
       Text: "${text}"`,
     });
     return response.text || text;
@@ -39,9 +106,10 @@ export const translateText = async (text: string, targetLanguage: string): Promi
 
 export const summarizeAiComment = async (text: string): Promise<string> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Summarize the following vaping setup analysis into a very brief bulleted list (max 3-4 bullets). Use short, high-impact headings followed by extremely concise explanations. Focus only on critical improvements and alignment. Return only the summarized text.
+      contents: `Summarize the following technical vaping analysis into a bulleted list of 3 absolute essentials.
       Text: "${text}"`,
     });
     return response.text || text;
@@ -53,26 +121,23 @@ export const summarizeAiComment = async (text: string): Promise<string> => {
 
 export const analyzeSetupLogic = async (setup: any): Promise<string> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `
-      Vaping Setup Critical Analysis Request:
-      
-      Details:
+      Vaping Setup Critical Analysis:
       - Vaping Style: ${setup.vapingStyle}
-      - Atomizer: ${setup.atomizerModel} (${setup.atomizerStyle})
-      - Coil: ${JSON.stringify(setup.coilData)}
-      - Airflow: ${JSON.stringify(setup.airflow)}
-      - Drip Tip: ${setup.dripTip} ${setup.dripTipCustomValue || ''}
-      - Coil Height: ${setup.coilHeightMm}mm
-      - E-Liquid: ${setup.liquidNicotine}mg ${setup.liquidType}
+      - Atomizer: ${setup.atomizerModel}
+      - Coil Specs: ${JSON.stringify(setup.coilData)}
+      - Airflow Config: ${JSON.stringify(setup.airflow)}
+      - Wattage: ${setup.wattage}W
+      - Drip Tip: ${setup.dripTip}
+      - Liquid: ${setup.liquidName}
       
-      Task:
-      1. Analyze compatibility between coil resistance and vaping style (${setup.vapingStyle}).
-      2. Evaluate if the airflow configuration (AFC/Insert) matches the coil diameter.
-      3. Validate the coil height relative to airflow logic.
-      4. Detect inconsistencies (e.g., high nicotine with high wattage/DL style).
-      5. Suggest 1-2 concrete technical improvements.
-      
-      Keep the tone professional, engineering-focused, and concise.
+      Structure your analysis with these exact headings:
+      **Overall Evaluation**: Grade this build (A-F).
+      **Optimization Suggestions**: Specific technical tweaks.
+      **Compatibility Check**: Components alignment verification.
+      **Cost Efficiency Insight**: Usage optimization vs longevity.
+      **Necessary and Important Suggestion**: One critical action item for safety or flavor.
     `;
 
     const response = await ai.models.generateContent({
@@ -86,41 +151,5 @@ export const analyzeSetupLogic = async (setup: any): Promise<string> => {
   } catch (error) {
     console.error("AI Error:", error);
     return "Analysis engine unavailable.";
-  }
-};
-
-export const findSweetSpot = async (
-  coil: Partial<CoilStats>, 
-  history: WickingHistory[], 
-  liquidType: string
-): Promise<string> => {
-  try {
-    const prompt = `
-      Vape Setup Technical Analysis Request:
-      Configuration: ${coil.coilCount} ${coil.wireConfig} Build
-      Specs: ${coil.material} ${coil.gauge}ga, ${coil.wraps} wraps, ${coil.innerDiameter}mm ID. 
-      Resulting Ohms: ${coil.resistance}Ω.
-      Surface Area estimate: ${coil.surfaceArea} mm².
-      Juice Category: ${liquidType}.
-      
-      Predict:
-      1. Optimal Wattage Range (e.g. 15-18W) based on typical heat flux of 200mW/mm².
-      2. Wicking strategy (Tight/Loose) for this specific coil diameter.
-      3. Expected flavor notes (Warm/Cool) with this setup.
-      
-      Be extremely precise and technical.
-    `;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: prompt,
-      config: {
-        thinkingConfig: { thinkingBudget: 16000 }
-      }
-    });
-    return response.text || "Setup verification complete.";
-  } catch (error) {
-    console.error("AI Error:", error);
-    return "Optimization engine unavailable.";
   }
 };

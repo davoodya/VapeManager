@@ -8,13 +8,13 @@ interface BottomNavProps {
 }
 
 const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab }) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   
   const tabs = [
     { id: 'dashboard', icon: 'fa-house', label: t.home },
     { id: 'inventory', icon: 'fa-boxes-stacked', label: t.inventory },
-    { id: 'lab', icon: 'fa-flask-vial', label: t.lab, primary: true },
-    { id: 'stats', icon: 'fa-chart-pie', label: t.stats },
+    { id: 'concierge', icon: 'fa-headset', label: lang === 'fa' ? 'مشاوره' : 'Concierge', primary: true },
+    { id: 'lab', icon: 'fa-flask-vial', label: t.lab },
     { id: 'settings', icon: 'fa-gear', label: t.settingsTitle },
   ];
 

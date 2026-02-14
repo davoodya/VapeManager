@@ -7,9 +7,10 @@ interface HistoryProps {
   history: WickingHistory[];
   inventory: InventoryItem[];
   coils: CoilStats[];
+  onDelete?: (id: string) => void;
 }
 
-const History: React.FC<HistoryProps> = ({ history, inventory, coils }) => {
+const History: React.FC<HistoryProps> = ({ history, inventory, coils, onDelete }) => {
   const { t, lang } = useTranslation();
   const [filterAtty, setFilterAtty] = useState<string>('all');
 
@@ -48,15 +49,23 @@ const History: React.FC<HistoryProps> = ({ history, inventory, coils }) => {
       <div className="space-y-6">
         {filteredHistory.sort((a, b) => b.date - a.date).map((log) => (
           <div key={log.id} className="bg-slate-900/60 rounded-[3rem] p-7 border border-slate-800 relative overflow-hidden group shadow-2xl">
-            <div className={`absolute top-7 ${lang === 'fa' ? 'left-7' : 'right-7'} text-[9px] font-black uppercase tracking-widest`}>
+            <div className={`absolute top-7 ${lang === 'fa' ? 'left-7' : 'right-7'} flex items-center gap-3`}>
               {!log.isActive ? (
-                <span className="text-slate-600 bg-slate-950 px-3 py-1.5 rounded-full border border-slate-800">{t.archived}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 bg-slate-950 px-3 py-1.5 rounded-full border border-slate-800">{t.archived}</span>
               ) : (
-                <span className="text-green-500 bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/30">{t.active}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-green-500 bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/30">{t.active}</span>
+              )}
+              {onDelete && !log.isActive && (
+                <button 
+                  onClick={() => onDelete(log.id)}
+                  className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center active:scale-90 transition-all"
+                >
+                  <i className="fa-solid fa-trash-can text-[10px]"></i>
+                </button>
               )}
             </div>
 
-            <div className="mb-8">
+            <div className="mb-8 pt-4">
               <h3 className="font-black text-2xl text-slate-100 leading-none mb-2 tracking-tight">{getAttyName(log.atomizerId)}</h3>
               <p className="text-[10px] text-slate-600 font-black uppercase tracking-[0.2em]">
                 {new Date(log.date).toLocaleDateString(lang === 'fa' ? 'fa-IR' : 'en-US')} • {new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -94,7 +103,7 @@ const History: React.FC<HistoryProps> = ({ history, inventory, coils }) => {
 
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-slate-800 px-4 py-2 rounded-full text-[10px] font-black uppercase text-slate-400 border border-slate-700 tracking-wider">
-                 {t.airflowStyle}: {log.airflowSetting}
+                 {t.airflowStyle}: {log.airflow.afcEnabled ? `AFC (${log.airflow.holesNumber})` : `Insert (${log.airflow.insertSize}mm)`}
               </div>
             </div>
 

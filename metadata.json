@@ -1,8 +1,9 @@
 {
-  "name": "Vape Management Pro",
-  "description": "A comprehensive mobile management tool for vapers to track inventory, calculate coil resistance, monitor atomizer wicking life, and optimize setups with AI intelligence.",
+  "name": "Vape Pro Management",
+  "description": "Production-grade vaping setup management with structured AI analysis, multi-setup tracking, and a comprehensive wicking journey engine.",
   "requestFramePermissions": [
     "camera",
-    "microphone"
+    "microphone",
+    "geolocation"
   ]
 }
