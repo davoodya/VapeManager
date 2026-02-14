@@ -21,10 +21,6 @@ const renderMarkdown = (text: string) => {
     }
 
     // Bold & Inline Code
-    let content: any = line;
-    const boldRegex = /\*\*(.*?)\*\*/g;
-    const codeRegex = /`(.*?)`/g;
-    
     const parts = line.split(/(\*\*.*?\*\*|`.*?`)/g);
     return (
       <p key={i} className="mb-2 text-slate-300 leading-relaxed">
@@ -73,7 +69,7 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
   const [dripTip, setDripTip] = useState<DripTipType>('Medium');
   const [dripTipCustom, setDripTipCustom] = useState('');
 
-  // Creation Toggles
+  // Inline Toggles
   const [isAddingAtty, setIsAddingAtty] = useState(false);
   const [newAtty, setNewAtty] = useState({ brand: '', model: '', type: 'MTL' as AtomizerStyle, price: 0, capacity: 2 });
 
@@ -90,10 +86,35 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showLangMenu, setShowLangMenu] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const setupImageRef = useRef<HTMLInputElement>(null);
 
-  // Fix: Added missing image upload handler
+  const handleAiComment = async () => {
+    setLoadingAi(true);
+    const atty = inventory.find(i => i.id === attyId);
+    const liquid = inventory.find(i => i.id === liquidId);
+    const result = await analyzeSetupLogic({
+      vapingStyle,
+      atomizerModel: atty?.name || newAtty.model || 'Custom',
+      coilData: coilId ? coils.find(c => c.id === coilId) : newCoil,
+      airflow: { afcEnabled, holesNumber, insertEnabled, insertSize },
+      wattage, dripTip: dripTip === 'Custom' ? dripTipCustom : dripTip,
+      liquidName: liquid?.name || newLiquid.flavor || 'Custom'
+    });
+    setAiResult(result);
+    setLoadingAi(false);
+  };
+
+  const handleTranslate = async (target: string) => {
+    if (!aiResult) return;
+    setLoadingAi(true);
+    const trans = await translateText(aiResult, target);
+    setAiResult(trans);
+    setLoadingAi(false);
+    setShowLangMenu(false);
+  };
+
   const handleSetupImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -115,9 +136,8 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
     }
     if (isAddingCoil) {
       const c: CoilStats = { 
-        id: `coil-${Date.now()}`, 
-        name: `${newCoil.material} ${newCoil.coilType === 'Other' ? newCoil.coilTypeOther : newCoil.coilType} ${newCoil.resistance}Ω`,
-        resistance: newCoil.resistance, material: newCoil.material, innerDiameter: newCoil.id, wraps: newCoil.wraps, type: newCoil.type, images: [], createdAt: Date.now(), gauge: newCoil.gauge 
+        id: `coil-${Date.now()}`, name: `${newCoil.material} ${newCoil.coilType} ${newCoil.resistance}Ω`,
+        resistance: newCoil.resistance, material: newCoil.material, innerDiameter: newCoil.id, wraps: newCoil.wraps, type: newCoil.type, images: [], createdAt: Date.now()
       };
       onAddCoilPreset(c);
       finalCoilId = c.id;
@@ -127,7 +147,7 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
       if (g) finalCottonId = g.id;
     }
     if (isAddingLiquid) {
-      const g = onAddGear({ brand: newLiquid.brand, name: newLiquid.flavor, category: 'liquid', price: newLiquid.price, specs: { liquidType: newLiquid.type, nicotineStrength: newLiquid.nicotine, flavor: newLiquid.flavor } });
+      const g = onAddGear({ brand: newLiquid.brand, name: newLiquid.flavor, category: 'liquid', price: newLiquid.price, specs: { liquidType: newLiquid.type, nicotineStrength: newLiquid.nicotine } });
       if (g) finalLiquidId = g.id;
     }
 
@@ -155,8 +175,8 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
           </div>
           {isAddingAtty ? (
             <div className="p-5 bg-slate-950/40 rounded-[2rem] border border-slate-800 space-y-4 animate-in zoom-in-95">
-              <input placeholder="Brand (e.g. SvoëMesto)" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newAtty.brand} onChange={e => setNewAtty({...newAtty, brand: e.target.value})} />
-              <input placeholder="Model (e.g. Kayfun X)" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newAtty.model} onChange={e => setNewAtty({...newAtty, model: e.target.value})} />
+              <input placeholder="Brand" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newAtty.brand} onChange={e => setNewAtty({...newAtty, brand: e.target.value})} />
+              <input placeholder="Model" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newAtty.model} onChange={e => setNewAtty({...newAtty, model: e.target.value})} />
               <div className="grid grid-cols-2 gap-3">
                 <select className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newAtty.type} onChange={e => setNewAtty({...newAtty, type: e.target.value as any})}>
                   <option value="MTL">MTL</option><option value="RTA">RTA</option><option value="RDA">RDA</option><option value="RDTA">RDTA</option>
@@ -171,9 +191,6 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
               {inventory.filter(i => i.category === 'atomizer').map(a => <option key={a.id} value={a.id}>{a.brand} {a.name}</option>)}
             </select>
           )}
-          <select value={vapingStyle} onChange={e => setVapingStyle(e.target.value as any)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-slate-200 mt-2">
-            <option value="MTL">MTL</option><option value="RDL">RDL</option><option value="DL">DL</option>
-          </select>
         </section>
 
         {/* COIL */}
@@ -186,26 +203,13 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
             <div className="p-5 bg-slate-950/40 rounded-[2rem] border border-slate-800 space-y-4 animate-in zoom-in-95">
               <div className="grid grid-cols-2 gap-3">
                 <select className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCoil.material} onChange={e => setNewCoil({...newCoil, material: e.target.value})}>
-                  {['Kanthal A1', 'Ni80', 'SS316L', 'Ni200', 'Titanium'].map(m => <option key={m} value={m}>{m}</option>)}
+                  {['Kanthal A1', 'Ni80', 'SS316L', 'Ni200'].map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
                 <input placeholder="Gauge (e.g. 28ga)" className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCoil.gauge} onChange={e => setNewCoil({...newCoil, gauge: e.target.value})} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <select className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCoil.coilType} onChange={e => setNewCoil({...newCoil, coilType: e.target.value})}>
-                  {['Round', 'Parallel', 'Twisted', 'Clapton', 'Fused Clapton', 'Alien', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                {newCoil.coilType === 'Other' && <input placeholder="Custom Coil Type" className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCoil.coilTypeOther} onChange={e => setNewCoil({...newCoil, coilTypeOther: e.target.value})} />}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <input type="number" placeholder="Ohms (Ω)" className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCoil.resistance || ''} onChange={e => setNewCoil({...newCoil, resistance: Number(e.target.value)})} />
+                <input type="number" placeholder="Resistance (Ω)" className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCoil.resistance || ''} onChange={e => setNewCoil({...newCoil, resistance: Number(e.target.value)})} />
                 <input type="number" placeholder="ID (mm)" className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCoil.id || ''} onChange={e => setNewCoil({...newCoil, id: Number(e.target.value)})} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <input type="number" placeholder="Wraps" className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCoil.wraps || ''} onChange={e => setNewCoil({...newCoil, wraps: Number(e.target.value)})} />
-                <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-                  <button onClick={() => setNewCoil({...newCoil, type: 'Contact'})} className={`flex-1 py-1 rounded-lg text-[8px] uppercase font-black ${newCoil.type === 'Contact' ? 'bg-blue-600 text-white' : 'text-slate-600'}`}>Contact</button>
-                  <button onClick={() => setNewCoil({...newCoil, type: 'Spaced'})} className={`flex-1 py-1 rounded-lg text-[8px] uppercase font-black ${newCoil.type === 'Spaced' ? 'bg-blue-600 text-white' : 'text-slate-600'}`}>Spaced</button>
-                </div>
               </div>
             </div>
           ) : (
@@ -224,8 +228,8 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
           </div>
           {isAddingCotton ? (
             <div className="p-5 bg-slate-950/40 rounded-[2rem] border border-slate-800 space-y-4 animate-in zoom-in-95">
-              <input placeholder="Brand (e.g. Wick N Vape)" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCotton.brand} onChange={e => setNewCotton({...newCotton, brand: e.target.value})} />
-              <input placeholder="Product Name (e.g. Cotton Bacon)" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCotton.name} onChange={e => setNewCotton({...newCotton, name: e.target.value})} />
+              <input placeholder="Brand" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCotton.brand} onChange={e => setNewCotton({...newCotton, brand: e.target.value})} />
+              <input placeholder="Model" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newCotton.name} onChange={e => setNewCotton({...newCotton, name: e.target.value})} />
             </div>
           ) : (
             <select value={cottonId} onChange={e => setCottonId(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-slate-200">
@@ -247,11 +251,10 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
               <input placeholder="Flavor Name" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newLiquid.flavor} onChange={e => setNewLiquid({...newLiquid, flavor: e.target.value})} />
               <div className="grid grid-cols-2 gap-3">
                 <select className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newLiquid.type} onChange={e => setNewLiquid({...newLiquid, type: e.target.value as any})}>
-                  <option value="Nic Salt">Nic Salt</option><option value="E-Juice Freebase">Freebase</option><option value="Shortfill">Shortfill</option>
+                  <option value="Nic Salt">Nic Salt</option><option value="E-Juice Freebase">Freebase</option>
                 </select>
                 <input type="number" placeholder="Nicotine (mg)" className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newLiquid.nicotine || ''} onChange={e => setNewLiquid({...newLiquid, nicotine: Number(e.target.value)})} />
               </div>
-              <input type="number" placeholder="Price" className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white" value={newLiquid.price || ''} onChange={e => setNewLiquid({...newLiquid, price: Number(e.target.value)})} />
             </div>
           ) : (
             <select value={liquidId} onChange={e => setLiquidId(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-slate-200">
@@ -261,58 +264,17 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
           )}
         </section>
 
-        {/* WATTAGE & HEIGHT */}
+        {/* OTHER FIELDS */}
         <div className="grid grid-cols-2 gap-4">
            <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t.coilHeight}</label>
-              <input type="number" step="0.1" value={coilHeight} placeholder="1.5 mm" onChange={e => setCoilHeight(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-white outline-none" />
+              <input type="number" step="0.1" value={coilHeight} placeholder="e.g. 1.5" onChange={e => setCoilHeight(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-white outline-none" />
            </div>
            <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Wattage (W)</label>
-              <input type="number" value={wattage} placeholder="15 W" onChange={e => setWattage(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-white outline-none" />
+              <input type="number" value={wattage} placeholder="e.g. 15" onChange={e => setWattage(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-white outline-none" />
            </div>
         </div>
-
-        {/* AIRFLOW */}
-        <section className="space-y-4 p-5 bg-slate-950/20 rounded-[2rem] border border-slate-800/40">
-           <div className="flex items-center justify-between px-1">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t.airflowConfig}</span>
-           </div>
-           <div className="grid grid-cols-2 gap-3">
-             <div className="space-y-2">
-               <div className="flex items-center gap-2 mb-1">
-                 <input type="checkbox" checked={afcEnabled} onChange={e => setAfcEnabled(e.target.checked)} id="afc_toggle" />
-                 <label htmlFor="afc_toggle" className="text-[9px] text-slate-400 uppercase font-black">{t.afcToggle}</label>
-               </div>
-               {afcEnabled && <input type="number" placeholder={t.holesNumber} value={holesNumber} onChange={e => setHolesNumber(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white outline-none" />}
-             </div>
-             <div className="space-y-2">
-               <div className="flex items-center gap-2 mb-1">
-                 <input type="checkbox" checked={insertEnabled} onChange={e => setInsertEnabled(e.target.checked)} id="insert_toggle" />
-                 <label htmlFor="insert_toggle" className="text-[9px] text-slate-400 uppercase font-black">{t.insertToggle}</label>
-               </div>
-               {insertEnabled && <input type="number" step="0.1" placeholder={t.insertSize} value={insertSize} onChange={e => setInsertSize(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white outline-none" />}
-             </div>
-           </div>
-        </section>
-
-        {/* DRIP TIP */}
-        <section className="space-y-3">
-           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t.dripTip}</label>
-           <select value={dripTip} onChange={e => setDripTip(e.target.value as any)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-slate-200">
-              <option value="Short">Short</option><option value="Medium">Medium</option><option value="Long">Long</option><option value="Custom">Custom</option>
-           </select>
-           {dripTip === 'Custom' && <input placeholder="Enter Custom Drip Tip Style" value={dripTipCustom} onChange={e => setDripTipCustom(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-white mt-2 outline-none" />}
-        </section>
-
-        {/* LIFETIME */}
-        <section className="space-y-4">
-           <div className="flex justify-between px-1">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t.lifetimeMl}</label>
-              <span className="text-sm font-black text-blue-500">{lifetimeMl} ML</span>
-           </div>
-           <input type="range" min="1" max="20" step="1" value={lifetimeMl} onChange={e => setLifetimeMl(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-full appearance-none accent-blue-600" />
-        </section>
 
         {/* NOTES */}
         <section className="space-y-3">
@@ -325,10 +287,11 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
                 {renderMarkdown(notes) || <span className="opacity-30 italic">No notes. Try using **bold** or `code` tags.</span>}
              </div>
            ) : (
-             <textarea placeholder="Write technical notes here... (Supports Markdown like ### Titles, **Bold**, `Code`)" className="w-full bg-slate-950 border border-slate-800 rounded-[2rem] p-5 text-sm h-40 resize-none text-slate-200 outline-none focus:ring-blue-500" value={notes} onChange={e => setNotes(e.target.value)} />
+             <textarea placeholder="Technical notes... Supports **Bold** and `Code` tags." className="w-full bg-slate-950 border border-slate-800 rounded-[2rem] p-5 text-sm h-40 resize-none text-slate-200 outline-none focus:ring-blue-500" value={notes} onChange={e => setNotes(e.target.value)} />
            )}
         </section>
 
+        {/* PICTURE */}
         <section className="space-y-3">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t.addSetupPicture}</label>
           <div onClick={() => setupImageRef.current?.click()} className="w-full h-40 rounded-[2.5rem] bg-slate-950/30 border-2 border-dashed border-slate-800 flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-500/50 transition-all shadow-inner">
@@ -336,6 +299,37 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
           </div>
           <input type="file" ref={setupImageRef} onChange={handleSetupImageUpload} className="hidden" accept="image/*" />
         </section>
+
+        {/* AI COMMENT SECTION */}
+        <div className="pt-4 space-y-4">
+          <button type="button" onClick={handleAiComment} disabled={loadingAi || (!attyId && !newAtty.model)} className="w-full py-5 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 rounded-[2.2rem] font-black uppercase text-xs tracking-widest flex items-center justify-center gap-3 transition-all hover:bg-indigo-600/20 active:scale-95 disabled:opacity-30">
+            {loadingAi ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-brain"></i>}
+            {t.aiComment}
+          </button>
+          
+          {aiResult && (
+            <div className="p-7 bg-slate-950/80 border border-indigo-500/20 rounded-[2.5rem] text-xs text-slate-300 animate-in fade-in">
+              <div className="prose prose-invert prose-sm whitespace-pre-line overflow-y-auto max-h-[300px] no-scrollbar">
+                {renderMarkdown(aiResult)}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 mt-6">
+                 <button onClick={() => { navigator.clipboard.writeText(aiResult); alert('Copied!'); }} className="flex items-center justify-center gap-2 py-3 bg-slate-900 border border-slate-800 rounded-xl text-[9px] font-black uppercase text-slate-400"><i className="fa-solid fa-copy text-blue-500"></i> {t.copyText}</button>
+                 <button onClick={async () => setAiResult(await summarizeAiComment(aiResult))} className="flex items-center justify-center gap-2 py-3 bg-slate-900 border border-slate-800 rounded-xl text-[9px] font-black uppercase text-slate-400"><i className="fa-solid fa-compress text-amber-500"></i> {t.summary}</button>
+                 <button onClick={() => setShowLangMenu(!showLangMenu)} className="flex items-center justify-center gap-2 py-3 bg-slate-900 border border-slate-800 rounded-xl text-[9px] font-black uppercase text-slate-400"><i className="fa-solid fa-language text-green-500"></i> {t.translate}</button>
+                 <button onClick={() => { setNotes(prev => prev + "\n\n**AI Insight:**\n" + aiResult); setIsPreview(true); }} className="flex items-center justify-center gap-2 py-3 bg-slate-900 border border-slate-800 rounded-xl text-[9px] font-black uppercase text-slate-400"><i className="fa-solid fa-file-import text-indigo-500"></i> {t.appendToNotes}</button>
+              </div>
+
+              {showLangMenu && (
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  {['Persian', 'French', 'Russian', 'Spanish', 'Dutch', 'Chinese', 'Japanese'].map(l => (
+                    <button key={l} onClick={() => handleTranslate(l)} className="py-2 bg-slate-900/60 border border-slate-800 rounded-lg text-[8px] font-bold text-slate-400">{l}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <button type="button" onClick={() => setShowStatusModal(true)} className="btn-primary w-full py-6 text-white rounded-[2.5rem] font-black uppercase tracking-[0.2em] active:scale-95 transition-all text-xs shadow-2xl">
           {t.confirmTracking}
@@ -347,8 +341,8 @@ const WickingLog: React.FC<WickingLogProps> = ({ inventory, coils, history, expe
            <div className="w-full max-w-xs bg-slate-900 rounded-[3rem] p-9 border border-slate-800 shadow-3xl text-center space-y-8">
               <p className="text-sm font-black text-slate-300 leading-relaxed">{t.statusPrompt}</p>
               <div className="space-y-4">
-                 <button onClick={() => { handleFinalAdd('active'); setShowStatusModal(false); }} className="w-full py-5 bg-blue-600 rounded-[2rem] text-white font-black uppercase text-xs tracking-widest shadow-xl">{t.activeStatus}</button>
-                 <button onClick={() => { handleFinalAdd('archived'); setShowStatusModal(false); }} className="w-full py-5 bg-slate-800 rounded-[2rem] text-slate-400 font-black uppercase text-xs tracking-widest border border-slate-700">{t.archiveStatus}</button>
+                 <button onClick={() => handleFinalAdd('active')} className="w-full py-5 bg-blue-600 rounded-[2rem] text-white font-black uppercase text-xs tracking-widest shadow-xl">{t.activeStatus}</button>
+                 <button onClick={() => handleFinalAdd('archived')} className="w-full py-5 bg-slate-800 rounded-[2rem] text-slate-400 font-black uppercase text-xs tracking-widest border border-slate-700">{t.archiveStatus}</button>
               </div>
               <button onClick={() => setShowStatusModal(false)} className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">{t.cancel}</button>
            </div>

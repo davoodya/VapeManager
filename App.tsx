@@ -18,21 +18,19 @@ import { InventoryItem, WickingHistory, CoilStats, UserExperience, Currency } fr
 import { requestNotificationPermission } from './services/notificationService.ts';
 import { Language, translations, LanguageContext } from './i18n.ts';
 
-// Premium Global Seeding Data
-const INITIAL_GEARS: InventoryItem[] = [
-  { id: 'seed-1', name: 'Kayfun X', brand: 'SvoëMesto', category: 'atomizer', style: 'MTL', price: 120, specs: { capacity: 4 }, createdAt: Date.now() },
-  { id: 'seed-2', name: 'Dani Box Mini', brand: 'Dicodes', category: 'mod', price: 280, createdAt: Date.now() },
-  { id: 'seed-3', name: 'Castle Long', brand: 'Five Pawns', category: 'liquid', price: 25, specs: { liquidType: 'Nic Salt', nicotineStrength: 12, flavor: 'Bourbon Coconut' }, createdAt: Date.now() },
+// World Class Vaping Gear Initial Data
+const INITIAL_DATA: InventoryItem[] = [
+  { id: 'seed-1', name: 'Kayfun X', brand: 'SvoëMesto', category: 'atomizer', style: 'MTL', price: 110, specs: { capacity: 4 }, createdAt: Date.now() },
+  { id: 'seed-2', name: 'Dani Box Mini', brand: 'Dicodes', category: 'mod', price: 290, createdAt: Date.now() },
+  { id: 'seed-3', name: 'Castle Long', brand: 'Five Pawns', category: 'liquid', price: 28, specs: { liquidType: 'Nic Salt', nicotineStrength: 12, flavor: 'Bourbon/Coconut' }, createdAt: Date.now() },
   { id: 'seed-4', name: 'Lemon Tart', brand: 'Dinner Lady', category: 'liquid', price: 18, specs: { liquidType: 'E-Juice Freebase', nicotineStrength: 3, flavor: 'Lemon Meringue' }, createdAt: Date.now() },
-  { id: 'seed-5', name: 'Pioneer V1.5', brand: 'BP Mods', category: 'atomizer', style: 'RTA', price: 55, specs: { capacity: 3.5 }, createdAt: Date.now() },
-  { id: 'seed-6', name: 'Cotton Bacon Prime', brand: 'Wick N Vape', category: 'cotton', price: 6, createdAt: Date.now() }
+  { id: 'seed-5', name: 'Cotton Bacon Prime', brand: 'Wick N Vape', category: 'cotton', price: 6, createdAt: Date.now() }
 ];
 
 const safeParse = (key: string, fallback: any) => {
   try {
     const item = localStorage.getItem(key);
-    if (!item || item === '[]') return fallback;
-    return JSON.parse(item);
+    return (item && item !== '[]') ? JSON.parse(item) : fallback;
   } catch (e) {
     return fallback;
   }
@@ -52,10 +50,9 @@ const App: React.FC = () => {
     return (saved === 'USD' || saved === 'IRR') ? saved : 'USD';
   });
   
-  // Persistent State with Seeding
   const [inventory, setInventory] = useState<InventoryItem[]>(() => {
     const data = safeParse('vape_inventory', []);
-    return data.length === 0 ? INITIAL_GEARS : data;
+    return data.length === 0 ? INITIAL_DATA : data;
   });
 
   const [wickingHistory, setWickingHistory] = useState<WickingHistory[]>(() => safeParse('vape_wicking_history', []));
@@ -116,8 +113,7 @@ const App: React.FC = () => {
           <>
             {commonHeader(t.dashboard)}
             <Dashboard 
-              inventory={inventory} wickingHistory={wickingHistory} coils={coils} 
-              experiences={experiences}
+              inventory={inventory} wickingHistory={wickingHistory} coils={coils} experiences={experiences}
               updateMl={updateMl} onRewick={() => setActiveRoute('setup')} 
               onOpenSettings={() => setActiveRoute('settings')} onNavigate={setActiveRoute} onArchive={archiveSetup}
             />
